@@ -1,0 +1,121 @@
+.window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #e9edf2;
+  border: 1px solid #7c8896;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 18px 40px rgba(10, 20, 40, 0.35),
+    0 2px 0 rgba(255, 255, 255, 0.4);
+  transition: width 0.16s ease;
+}
+
+.titleBar {
+  height: calc(32px * var(--ui-scale, 1));
+  flex: 0 0 calc(32px * var(--ui-scale, 1));
+  display: flex;
+  align-items: center;
+  padding: 0 calc(9px * var(--ui-scale, 1));
+  cursor: grab;
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(180, 205, 230, 0.35) 50%,
+      rgba(255, 255, 255, 0.85) 100%
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      #b9c6d4 0px,
+      #b9c6d4 1px,
+      #dbe4ec 1px,
+      #dbe4ec 2px
+    );
+  border-bottom: 1px solid #8a97a6;
+}
+
+.titleBar:active {
+  cursor: grabbing;
+}
+
+.titleBarStatic,
+.titleBarStatic:active {
+  cursor: default;
+}
+
+.titleText {
+  flex: 1;
+  text-align: center;
+  font-size: calc(15px * var(--ui-scale, 1));
+  letter-spacing: 0.06em;
+  color: #1f2a37;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  padding: 0 calc(9px * var(--ui-scale, 1));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Dimensional Y2K-chrome corner buttons: glossy beveled squares, one per
+   corner. Purely decorative — mimics real window chrome, no click behavior
+   (hence <span>, not <button>, and no hover/active feedback). */
+.closeBox,
+.zoomBox {
+  position: relative;
+  box-sizing: border-box;
+  display: block;
+  width: calc(19px * var(--ui-scale, 1));
+  height: calc(19px * var(--ui-scale, 1));
+  flex: 0 0 calc(19px * var(--ui-scale, 1));
+  border-radius: calc(4px * var(--ui-scale, 1));
+  cursor: default;
+  border: 1px solid #5b6b7d;
+  background: linear-gradient(145deg, #f4f9fd 0%, #bcd0e6 45%, #7fa0c4 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -2px 3px rgba(20, 40, 70, 0.25) inset,
+    0 1px 2px rgba(10, 20, 40, 0.35);
+}
+
+.closeBox::before,
+.closeBox::after,
+.zoomBox::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+/* Close glyph = an X */
+.closeBox::before,
+.closeBox::after {
+  width: 52%;
+  height: 1.3px;
+  background: #35465c;
+}
+
+.closeBox::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.closeBox::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+/* Zoom glyph = a small inset square, the classic "maximize" mark */
+.zoomBox::before {
+  width: 42%;
+  height: 42%;
+  border: 1.3px solid #35465c;
+  box-sizing: border-box;
+}
+
+.body {
+  flex: 1;
+  background: #f4f6f9;
+  overflow: hidden;
+}

@@ -62,6 +62,9 @@ export default async function handler(req, res) {
             albumImageUrl: song.item.album.images[0].url,
             artist: song.item.artists.map((artist) => artist.name).join(", "),
             title: song.item.name,
+            durationMs: song.item.duration_ms,
+            progressMs: song.progress_ms,
+            isPlaying: song.is_playing,
         });
 
     } catch (error) {

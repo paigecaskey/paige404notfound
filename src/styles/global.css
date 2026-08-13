@@ -27,6 +27,7 @@
 }
 * {
     font-family: var(--fun-font);
+    text-transform: uppercase;
 }
 
 

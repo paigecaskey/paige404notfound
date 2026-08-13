@@ -1,0 +1,8 @@
+/* Small reference node — see WebampWindow.jsx for why this seeds Webamp's
+   starting position without confining where it can be dragged to. */
+.anchor {
+  position: absolute;
+  width: 275px;
+  height: 116px;
+  pointer-events: none;
+}

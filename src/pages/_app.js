@@ -7,8 +7,8 @@ function MyApp({ Component, pageProps }) {
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
-        <title>Paige Caskey</title>
+        <link rel="icon" href="/fav.png" type="image/png"/>
+        <title>paige404notfound</title>
       </Head>
       <Component {...pageProps} />
     </>
