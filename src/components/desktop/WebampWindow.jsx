@@ -13,6 +13,17 @@ const LOCKED_WINDOWS = {
   playlist: { domId: 'playlist-window', offset: { x: 0, y: 464 } },
 };
 
+// The skin's main.bmp bakes a blank dark panel into its background art (no
+// visualizer canvas actually renders there unless toggled on) — empirically
+// measured off a screenshot of the rendered #main-window at
+// enableDoubleSizeMode's 562x244 (left with a couple px of margin inside the
+// panel's true edges), then halved: enableDoubleSizeMode applies a CSS
+// `transform: scale(2)` directly on #main-window itself (confirmed via
+// getComputedStyle), and our overlay — a plain child of that element —
+// inherits that same scale. Values measured directly off the already-2x
+// screenshot would otherwise get doubled a second time.
+const ALBUM_ART_RECT = { left: 19, top: 24, width: 83.5, height: 38.5 };
+
 /**
  * Mounts a real Webamp instance loaded with our own .wsz skin (see
  * DESKTOP_CONFIG.webampSkinUrl — change the skin by editing that one path).
@@ -58,11 +69,17 @@ const LOCKED_WINDOWS = {
  * artist/title get loaded into Webamp's track display backed by a silent
  * placeholder file that's immediately paused — Webamp shows what you're
  * listening to, it just isn't the one actually producing the sound.
+ *
+ * Webamp never renders album art anywhere in its own UI (it stores
+ * `metaData.albumArtUrl` but nothing reads it — confirmed by grepping the
+ * bundle), so album art is a plain <img> we create and position ourselves,
+ * directly over the blank panel described by ALBUM_ART_RECT above.
  */
 const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
   const anchorRef = useRef(null);
   const webampRef = useRef(null);
   const webampElRef = useRef(null);
+  const albumArtElRef = useRef(null);
   const positionRef = useRef(initialPosition);
   const relockRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -190,6 +207,31 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
         webampEl.addEventListener('mousedown', onFocus, { capture: true });
       }
 
+      // #main-window is already position:absolute (confirmed empirically),
+      // so a plain absolutely-positioned child lines up against it directly
+      // — no extra positioning wrapper needed.
+      const mainWindowEl = document.getElementById('main-window');
+      if (mainWindowEl) {
+        const art = document.createElement('img');
+        art.alt = '';
+        art.style.position = 'absolute';
+        art.style.left = `${ALBUM_ART_RECT.left}px`;
+        art.style.top = `${ALBUM_ART_RECT.top}px`;
+        art.style.width = `${ALBUM_ART_RECT.width}px`;
+        art.style.height = `${ALBUM_ART_RECT.height}px`;
+        art.style.objectFit = 'cover';
+        art.style.pointerEvents = 'none';
+        art.style.display = 'none';
+        mainWindowEl.appendChild(art);
+        albumArtElRef.current = art;
+      }
+
+      // Corrects a track's duration once Webamp finishes "measuring" our
+      // silent placeholder's real (tiny) length, which otherwise clobbers
+      // whatever duration we hand it at load time — see the `duration`
+      // effect below for where this gets armed.
+      let pendingDuration = null;
+
       const unsubscribe = webamp.__onStateChange(() => {
         const state = webamp.store.getState();
         for (const windowId of Object.keys(LOCKED_WINDOWS)) {
@@ -205,9 +247,27 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
             if (windowId === 'main') reportMainLayout(home);
           }
         }
+
+        if (pendingDuration) {
+          const track = state.tracks[pendingDuration.id];
+          if (track?.mediaTagsRequestStatus === 'COMPLETE' && track.duration !== pendingDuration.duration) {
+            webamp.store.dispatch({
+              type: 'SET_MEDIA_DURATION',
+              id: pendingDuration.id,
+              duration: pendingDuration.duration,
+            });
+            pendingDuration = null;
+          }
+        }
       });
 
       webampRef.current._unsubscribeLock = unsubscribe;
+      webampRef.current._armDurationFix = (id, duration) => {
+        pendingDuration = { id, duration };
+      };
+      webampRef.current._clearDurationFix = () => {
+        pendingDuration = null;
+      };
     })();
 
     return () => {
@@ -216,6 +276,8 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
       if (webampElRef.current) {
         webampElRef.current.removeEventListener('mousedown', onFocus, { capture: true });
       }
+      albumArtElRef.current?.remove();
+      albumArtElRef.current = null;
       webampRef.current?._unsubscribeLock?.();
       webampRef.current?.dispose();
       webampRef.current = null;
@@ -242,6 +304,7 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
   useEffect(() => {
     const webamp = webampRef.current;
     if (!ready || !webamp) return;
+
     if (song) {
       webamp.setTracksToPlay([
         {
@@ -251,8 +314,28 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
         },
       ]);
       webamp.pause();
+
+      if (song.durationMs) {
+        const id = Object.keys(webamp.store.getState().tracks).pop();
+        webamp._armDurationFix?.(Number(id), song.durationMs / 1000);
+      } else {
+        webamp._clearDurationFix?.();
+      }
+
+      if (albumArtElRef.current) {
+        if (song.albumImageUrl) {
+          albumArtElRef.current.src = song.albumImageUrl;
+          albumArtElRef.current.style.display = 'block';
+        } else {
+          albumArtElRef.current.style.display = 'none';
+        }
+      }
     } else {
       webamp.setTracksToPlay([]);
+      webamp._clearDurationFix?.();
+      if (albumArtElRef.current) {
+        albumArtElRef.current.style.display = 'none';
+      }
     }
   }, [ready, song]);
 
