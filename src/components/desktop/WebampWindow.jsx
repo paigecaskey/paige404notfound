@@ -5,6 +5,13 @@ import { clampRectToSafeArea } from './safeArea';
 import { useNowPlaying } from './useNowPlaying';
 import { getSilentAudioDataUri } from './silentAudio';
 
+function formatDuration(ms) {
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
 // Webamp redux window id -> the DOM id of its rendered root node, and where
 // it lives relative to `initialPosition` when open.
 const LOCKED_WINDOWS = {
@@ -23,6 +30,17 @@ const LOCKED_WINDOWS = {
 // inherits that same scale. Values measured directly off the already-2x
 // screenshot would otherwise get doubled a second time.
 const ALBUM_ART_RECT = { left: 19, top: 24, width: 83.5, height: 38.5 };
+
+// The marquee's bitmap font glyphs are ~5x6px natively — legible enough on
+// a 1998 CRT, but not on a modern display, and not fixable by scaling: a
+// blocky 5x6px glyph just becomes a bigger blocky glyph (tried this first —
+// it also overflowed past the window's right edge, since scaling the
+// marquee element scales its whole rendered box, including past its
+// original footprint). Real text has actual hinting/antialiasing even at
+// small sizes, so instead the native marquee is hidden and a plain HTML
+// overlay — same technique as ALBUM_ART_RECT above — sits in its place,
+// same footprint, well within the window's bounds.
+const MARQUEE_OVERLAY_RECT = { left: 111, top: 24, width: 154, height: 12 };
 
 /**
  * Mounts a real Webamp instance loaded with our own .wsz skin (see
@@ -73,13 +91,16 @@ const ALBUM_ART_RECT = { left: 19, top: 24, width: 83.5, height: 38.5 };
  * Webamp never renders album art anywhere in its own UI (it stores
  * `metaData.albumArtUrl` but nothing reads it — confirmed by grepping the
  * bundle), so album art is a plain <img> we create and position ourselves,
- * directly over the blank panel described by ALBUM_ART_RECT above.
+ * directly over the blank panel described by ALBUM_ART_RECT above. The
+ * artist/title marquee gets the same treatment for readability — see
+ * MARQUEE_OVERLAY_RECT.
  */
 const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
   const anchorRef = useRef(null);
   const webampRef = useRef(null);
   const webampElRef = useRef(null);
   const albumArtElRef = useRef(null);
+  const marqueeOverlayElRef = useRef(null);
   const positionRef = useRef(initialPosition);
   const relockRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -226,6 +247,33 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
         albumArtElRef.current = art;
       }
 
+      const marqueeEl = document.getElementById('marquee');
+      if (marqueeEl) {
+        marqueeEl.style.visibility = 'hidden';
+      }
+      if (mainWindowEl) {
+        const label = document.createElement('div');
+        label.style.position = 'absolute';
+        label.style.left = `${MARQUEE_OVERLAY_RECT.left}px`;
+        label.style.top = `${MARQUEE_OVERLAY_RECT.top}px`;
+        label.style.width = `${MARQUEE_OVERLAY_RECT.width}px`;
+        label.style.height = `${MARQUEE_OVERLAY_RECT.height}px`;
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.overflow = 'hidden';
+        label.style.whiteSpace = 'nowrap';
+        label.style.textOverflow = 'ellipsis';
+        label.style.fontFamily = 'monospace';
+        label.style.fontSize = '8px';
+        label.style.lineHeight = '1';
+        label.style.color = '#dce8f7';
+        label.style.textShadow = '0 0 2px rgba(147, 197, 253, 0.8)';
+        label.style.background = 'rgba(2, 20, 40, 0.55)';
+        label.style.pointerEvents = 'none';
+        mainWindowEl.appendChild(label);
+        marqueeOverlayElRef.current = label;
+      }
+
       // Corrects a track's duration once Webamp finishes "measuring" our
       // silent placeholder's real (tiny) length, which otherwise clobbers
       // whatever duration we hand it at load time — see the `duration`
@@ -278,6 +326,8 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
       }
       albumArtElRef.current?.remove();
       albumArtElRef.current = null;
+      marqueeOverlayElRef.current?.remove();
+      marqueeOverlayElRef.current = null;
       webampRef.current?._unsubscribeLock?.();
       webampRef.current?.dispose();
       webampRef.current = null;
@@ -330,11 +380,19 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
           albumArtElRef.current.style.display = 'none';
         }
       }
+
+      if (marqueeOverlayElRef.current) {
+        const duration = song.durationMs ? ` (${formatDuration(song.durationMs)})` : '';
+        marqueeOverlayElRef.current.textContent = `${song.title} — ${song.artist}${duration}`;
+      }
     } else {
       webamp.setTracksToPlay([]);
       webamp._clearDurationFix?.();
       if (albumArtElRef.current) {
         albumArtElRef.current.style.display = 'none';
+      }
+      if (marqueeOverlayElRef.current) {
+        marqueeOverlayElRef.current.textContent = '';
       }
     }
   }, [ready, song]);
