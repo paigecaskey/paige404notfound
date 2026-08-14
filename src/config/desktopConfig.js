@@ -31,7 +31,82 @@ const IMAGE_WINDOW = {
   title: 'Windows_9X_BSOD.png',
   src: '/assets/images/bsod.png',
   alt: 'Windows 9X blue screen of death',
+  aspectRatio: 20 / 13,
 };
+
+// Real assets — a batch of early-2000s web ephemera, scattered at random
+// (but stable) positions across whatever screen space is actually left over
+// (see useScatteredImagesLayout — everywhere that isn't Webamp, BSOD, or
+// the dock) rather than through hand-scaled reference coordinates, which
+// had no reason to still make visual sense once the aspect ratio changed
+// enough (a laptop window vs. a phone). `baseWidth` is each one's preferred
+// width at scale 1 — it shrinks to fit, or drops from render entirely if
+// nothing clears a sane minimum anywhere. Order here is placement priority:
+// earlier entries get first pick of space. im-famous goes first and is
+// marked `neverHide` — it's the biggest of the batch and the one thing on
+// this page that's never allowed to disappear, so it always claims a spot
+// (shrinking if it truly has to) before anything else gets placed.
+// `aspectRatio` is each image's own native width/height so its window isn't
+// stretched. Add/remove entries freely — Desktop.jsx just maps over this.
+const SCATTERED_IMAGES = [
+  {
+    id: 'im-famous',
+    title: 'im-famous.gif',
+    src: '/assets/scattered/im-famous.gif',
+    alt: "I'm famous",
+    aspectRatio: 600 / 824,
+    baseWidth: 380,
+    neverHide: true,
+  },
+  {
+    id: 'turntables',
+    title: 'turntables.gif',
+    src: '/assets/scattered/turntables.gif',
+    alt: 'DJ turntables and mixer',
+    aspectRatio: 494 / 102,
+    baseWidth: 320,
+  },
+  {
+    id: 'pink-floyd',
+    title: 'pink-floyd.png',
+    src: '/assets/scattered/pink-floyd.png',
+    alt: 'I wonder... does God listen to Pink Floyd?',
+    aspectRatio: 114 / 112,
+    baseWidth: 210,
+  },
+  {
+    id: 'barcode',
+    title: 'barcode.gif',
+    src: '/assets/scattered/barcode.gif',
+    alt: 'Barcode',
+    aspectRatio: 136 / 97,
+    baseWidth: 200,
+  },
+  {
+    id: 'processing',
+    title: 'processing.gif',
+    src: '/assets/scattered/processing.gif',
+    alt: 'Processing... attempting to give a damn',
+    aspectRatio: 100 / 100,
+    baseWidth: 160,
+  },
+  {
+    id: 'dj-girl',
+    title: 'dj-girl.jpg',
+    src: '/assets/scattered/dj-girl.jpg',
+    alt: "The DJ's girl",
+    aspectRatio: 150 / 150,
+    baseWidth: 190,
+  },
+  {
+    id: 'cd',
+    title: 'cd.gif',
+    src: '/assets/scattered/cd.gif',
+    alt: 'Spinning CD',
+    aspectRatio: 60 / 60,
+    baseWidth: 140,
+  },
+];
 
 // TODO: drop real icon art in public/assets/icons/, then wire each item's
 // destination (href for a normal link, or onClick for custom behavior).
@@ -69,6 +144,7 @@ const DESKTOP_CONFIG = {
   webampSkinUrl: WEBAMP_SKIN_URL,
   webampInitialTracks: WEBAMP_INITIAL_TRACKS,
   imageWindow: IMAGE_WINDOW,
+  scatteredImages: SCATTERED_IMAGES,
   dockIcons: DOCK_ICONS,
 };
 

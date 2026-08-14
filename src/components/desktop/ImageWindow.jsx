@@ -10,9 +10,12 @@ const ImageWindow = ({
   center,
   showTitle = true,
   draggable = true,
+  pixelated = false,
   width,
   zIndex,
   onFocus,
+  onLayout,
+  clamp = true,
 }) => {
   const { ref, failed } = useImageFallback();
 
@@ -27,11 +30,13 @@ const ImageWindow = ({
       width={width}
       zIndex={zIndex}
       onFocus={onFocus}
+      onLayout={onLayout}
+      clamp={clamp}
     >
-      <div className={styles.frame}>
+      <div className={styles.frame} style={{ aspectRatio: image.aspectRatio }}>
         <img
           ref={ref}
-          className={styles.image}
+          className={`${styles.image} ${pixelated ? styles.pixelated : ''}`}
           src={image.src}
           alt={image.alt}
           draggable={false}

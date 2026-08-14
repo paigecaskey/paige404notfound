@@ -8,8 +8,14 @@ import ImageWindow from './ImageWindow';
 import { useWindowStack } from './useWindowStack';
 import { useDesktopScale } from './useDesktopScale';
 import { useImageWindowLayout } from './useImageWindowLayout';
+import { useScatteredImagesLayout } from './useScatteredImagesLayout';
 
-const WINDOW_IDS = ['webamp', 'image'];
+// 'image' (the BSOD window) is listed last so it starts with the highest
+// z-index — it's meant to stay the main focus of the page. The scattered
+// images (see useScatteredImagesLayout) never need to overlap it at all, so
+// this is purely about which window reads as "in front" if focus order ever
+// puts two of them at the same z-index.
+const WINDOW_IDS = ['webamp', ...DESKTOP_CONFIG.scatteredImages.map((img) => img.id), 'image'];
 
 // Reference (unscaled, at the 1440x900 design resolution) spawn position —
 // see useDesktopScale for how this gets multiplied up/down to fit the
@@ -19,15 +25,14 @@ const WEBAMP_BASE_POSITION = { x: 20, y: 20 };
 
 // Preferred width for the image window — actual size is capped by
 // useImageWindowLayout so it can never overlap the menu bar, dock, or
-// Webamp. Must match the aspect-ratio in ImageWindow.module.css (2560x1664,
-// the source image's real dimensions, so nothing gets cropped).
+// Webamp.
 const IMAGE_BASE_WIDTH = 860;
-const IMAGE_ASPECT_RATIO = 20 / 13;
 
 const Desktop = () => {
   const { zIndices, bringToFront } = useWindowStack(WINDOW_IDS);
   const { scale, viewportWidth, viewportHeight } = useDesktopScale();
   const [webampRect, setWebampRect] = useState(null);
+  const [imageRect, setImageRect] = useState(null);
 
   const imageLayout = useImageWindowLayout({
     scale,
@@ -35,7 +40,16 @@ const Desktop = () => {
     viewportHeight,
     webampRect,
     baseWidth: IMAGE_BASE_WIDTH,
-    aspectRatio: IMAGE_ASPECT_RATIO,
+    aspectRatio: DESKTOP_CONFIG.imageWindow.aspectRatio,
+  });
+
+  const scatteredLayouts = useScatteredImagesLayout({
+    scale,
+    viewportWidth,
+    viewportHeight,
+    webampRect,
+    blockerRect: imageRect,
+    images: DESKTOP_CONFIG.scatteredImages,
   });
 
   // This page is a single immersive screen — no page scroll while it's mounted.
@@ -64,6 +78,24 @@ const Desktop = () => {
         onLayout={setWebampRect}
       />
 
+      {DESKTOP_CONFIG.scatteredImages
+        .filter((img) => scatteredLayouts[img.id])
+        .map((img) => (
+          <ImageWindow
+            key={img.id}
+            id={img.id}
+            image={img}
+            showTitle={false}
+            draggable={false}
+            pixelated
+            initialPosition={{ x: scatteredLayouts[img.id].x, y: scatteredLayouts[img.id].y }}
+            width={scatteredLayouts[img.id].width}
+            zIndex={zIndices[img.id]}
+            onFocus={() => bringToFront(img.id)}
+            clamp={false}
+          />
+        ))}
+
       {imageLayout && (
         <ImageWindow
           id="image"
@@ -74,6 +106,7 @@ const Desktop = () => {
           width={imageLayout.width}
           zIndex={zIndices.image}
           onFocus={() => bringToFront('image')}
+          onLayout={setImageRect}
         />
       )}
 
