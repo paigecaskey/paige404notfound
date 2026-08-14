@@ -6,3 +6,24 @@
   height: 116px;
   pointer-events: none;
 }
+
+/* Now-playing marquee overlay — see MARQUEE_OVERLAY_RECT in WebampWindow.jsx.
+   .marqueeTrack holds two back-to-back copies of the text; animating it from
+   translateX(0) to translateX(-50%) scrolls exactly one copy's width out of
+   view, landing on a frame identical to the start, so the loop is seamless
+   with no snap-back. Only applied (via inline animation-name) when the text
+   actually overflows the box — see setMarqueeText. */
+.marqueeTrack {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+@keyframes marqueeScroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

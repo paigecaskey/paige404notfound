@@ -5,6 +5,42 @@ import { clampRectToSafeArea } from './safeArea';
 import { useNowPlaying } from './useNowPlaying';
 import { getSilentAudioDataUri } from './silentAudio';
 
+// Rebuilds the marquee track's content and, if the text is wider than the
+// visible box, sets up the seamless two-copy scroll (see .marqueeTrack in
+// WebampWindow.module.css) — left static and untruncated otherwise, since
+// most "Title — Artist" strings fit without needing to move at all.
+function setMarqueeText(trackEl, boxWidth, text, marqueeScrollAnimationName) {
+  trackEl.style.animation = 'none';
+  trackEl.replaceChildren();
+
+  const single = document.createElement('span');
+  single.textContent = text;
+  trackEl.appendChild(single);
+
+  const textWidth = single.getBoundingClientRect().width;
+  if (textWidth <= boxWidth) return;
+
+  // A second [gap][text] copy, identical to the first — the track's total
+  // width is exactly 2x (textWidth + gap), so animating to translateX(-50%)
+  // scrolls precisely one copy out of view and lands on a frame that looks
+  // identical to the start.
+  const makeGap = () => {
+    const gap = document.createElement('span');
+    gap.style.display = 'inline-block';
+    gap.style.width = `${MARQUEE_GAP_PX}px`;
+    return gap;
+  };
+  trackEl.appendChild(makeGap());
+  const copy = document.createElement('span');
+  copy.textContent = text;
+  trackEl.appendChild(copy);
+  trackEl.appendChild(makeGap());
+
+  const cycleWidth = textWidth + MARQUEE_GAP_PX;
+  const duration = cycleWidth / MARQUEE_SPEED_PX_PER_SEC;
+  trackEl.style.animation = `${marqueeScrollAnimationName} ${duration}s linear infinite`;
+}
+
 function formatDuration(ms) {
   const totalSeconds = Math.round(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -41,6 +77,11 @@ const ALBUM_ART_RECT = { left: 19, top: 24, width: 83.5, height: 38.5 };
 // overlay — same technique as ALBUM_ART_RECT above — sits in its place,
 // same footprint, well within the window's bounds.
 const MARQUEE_OVERLAY_RECT = { left: 111, top: 24, width: 154, height: 12 };
+// Gap between the two looping copies of the text, and how fast the track
+// scrolls — tuned for the 8px monospace font below to read comfortably
+// rather than blur past.
+const MARQUEE_GAP_PX = 24;
+const MARQUEE_SPEED_PX_PER_SEC = 32;
 
 /**
  * Mounts a real Webamp instance loaded with our own .wsz skin (see
@@ -101,6 +142,7 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
   const webampElRef = useRef(null);
   const albumArtElRef = useRef(null);
   const marqueeOverlayElRef = useRef(null);
+  const marqueeTrackElRef = useRef(null);
   const positionRef = useRef(initialPosition);
   const relockRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -252,6 +294,7 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
         marqueeEl.style.visibility = 'hidden';
       }
       if (mainWindowEl) {
+        // Outer viewport: fixed size, clips whatever the inner track does.
         const label = document.createElement('div');
         label.style.position = 'absolute';
         label.style.left = `${MARQUEE_OVERLAY_RECT.left}px`;
@@ -261,8 +304,6 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
         label.style.display = 'flex';
         label.style.alignItems = 'center';
         label.style.overflow = 'hidden';
-        label.style.whiteSpace = 'nowrap';
-        label.style.textOverflow = 'ellipsis';
         label.style.fontFamily = 'monospace';
         label.style.fontSize = '8px';
         label.style.lineHeight = '1';
@@ -270,8 +311,17 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
         label.style.textShadow = '0 0 2px rgba(147, 197, 253, 0.8)';
         label.style.background = 'rgba(2, 20, 40, 0.55)';
         label.style.pointerEvents = 'none';
+
+        // Inner track: holds the text (and, once it's known to overflow,
+        // a second looping copy — see setMarqueeText) and is what actually
+        // gets animated/scrolled.
+        const track = document.createElement('div');
+        track.className = styles.marqueeTrack;
+        label.appendChild(track);
+
         mainWindowEl.appendChild(label);
         marqueeOverlayElRef.current = label;
+        marqueeTrackElRef.current = track;
       }
 
       // Corrects a track's duration once Webamp finishes "measuring" our
@@ -328,6 +378,7 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
       albumArtElRef.current = null;
       marqueeOverlayElRef.current?.remove();
       marqueeOverlayElRef.current = null;
+      marqueeTrackElRef.current = null;
       webampRef.current?._unsubscribeLock?.();
       webampRef.current?.dispose();
       webampRef.current = null;
@@ -381,9 +432,14 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
         }
       }
 
-      if (marqueeOverlayElRef.current) {
+      if (marqueeOverlayElRef.current && marqueeTrackElRef.current) {
         const duration = song.durationMs ? ` (${formatDuration(song.durationMs)})` : '';
-        marqueeOverlayElRef.current.textContent = `${song.title} — ${song.artist}${duration}`;
+        setMarqueeText(
+          marqueeTrackElRef.current,
+          marqueeOverlayElRef.current.clientWidth,
+          `${song.title} — ${song.artist}${duration}`,
+          styles.marqueeScroll
+        );
       }
     } else {
       webamp.setTracksToPlay([]);
@@ -391,8 +447,9 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
       if (albumArtElRef.current) {
         albumArtElRef.current.style.display = 'none';
       }
-      if (marqueeOverlayElRef.current) {
-        marqueeOverlayElRef.current.textContent = '';
+      if (marqueeTrackElRef.current) {
+        marqueeTrackElRef.current.style.animation = 'none';
+        marqueeTrackElRef.current.replaceChildren();
       }
     }
   }, [ready, song]);
