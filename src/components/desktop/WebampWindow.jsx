@@ -67,6 +67,26 @@ const LOCKED_WINDOWS = {
 // screenshot would otherwise get doubled a second time.
 const ALBUM_ART_RECT = { left: 19, top: 24, width: 83.5, height: 38.5 };
 
+// The skin's title bar bakes "WWW.DIGITERACTIVE.COM" directly into its
+// bitmap art (confirmed: #title-bar has no text content of its own, it's
+// pure background image) — there's no dynamic title text to just set, so
+// this covers it with a same-style overlay instead, same technique as
+// ALBUM_ART_RECT/MARQUEE_OVERLAY_RECT. The original text's rect and
+// background color were empirically measured by scanning the rendered
+// title bar pixel-by-pixel for the text's dark-navy glyph color against
+// its cream background (rather than eyeballed), then halved out of the 2x
+// screenshot like the other rects above. Widened well past that original
+// span, out toward (but not touching) the option icon on the left
+// (native x 6-15) and the minimize icon on the right (starts at native
+// x 244) — a flat-color patch sized tightly to the old text read as an
+// obviously pasted-on box against the title bar's gradient; extending it
+// further into that same gradient on both sides reads as more of an
+// intentional panel.
+const TITLE_OVERLAY_RECT = { left: 25, top: 3, width: 210, height: 10 };
+const TITLE_OVERLAY_BACKGROUND = '#eae6dc';
+const TITLE_OVERLAY_TEXT_COLOR = '#0a2f58';
+const TITLE_TEXT = "PAIGE'S MUSIC";
+
 // The marquee's bitmap font glyphs are ~5x6px natively — legible enough on
 // a 1998 CRT, but not on a modern display, and not fixable by scaling: a
 // blocky 5x6px glyph just becomes a bigger blocky glyph (tried this first —
@@ -82,6 +102,13 @@ const MARQUEE_OVERLAY_RECT = { left: 111, top: 24, width: 154, height: 12 };
 // rather than blur past.
 const MARQUEE_GAP_PX = 24;
 const MARQUEE_SPEED_PX_PER_SEC = 32;
+
+// Shown in place of real now-playing data whenever Spotify has nothing
+// currently playing (paused, stopped, or before anything's ever played —
+// the API collapses all three to the same response, so there's no way to
+// tell them apart or show what was last playing instead).
+const OFFLINE_ALBUM_ART_SRC = '/assets/webamp/disc.gif';
+const OFFLINE_TEXT = 'offline :)';
 
 /**
  * Mounts a real Webamp instance loaded with our own .wsz skin (see
@@ -127,7 +154,10 @@ const MARQUEE_SPEED_PX_PER_SEC = 32;
  * a streamable audio file (that's DRM'd), so the currently-playing
  * artist/title get loaded into Webamp's track display backed by a silent
  * placeholder file that's immediately paused — Webamp shows what you're
- * listening to, it just isn't the one actually producing the sound.
+ * listening to, it just isn't the one actually producing the sound. When
+ * nothing's playing (paused, stopped, or nothing's ever played — Spotify's
+ * API collapses all three to the same response), shows disc.gif and
+ * "offline :)" instead — see OFFLINE_ALBUM_ART_SRC/OFFLINE_TEXT.
  *
  * Webamp never renders album art anywhere in its own UI (it stores
  * `metaData.albumArtUrl` but nothing reads it — confirmed by grepping the
@@ -143,6 +173,7 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
   const albumArtElRef = useRef(null);
   const marqueeOverlayElRef = useRef(null);
   const marqueeTrackElRef = useRef(null);
+  const titleOverlayElRef = useRef(null);
   const positionRef = useRef(initialPosition);
   const relockRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -282,11 +313,40 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
         art.style.top = `${ALBUM_ART_RECT.top}px`;
         art.style.width = `${ALBUM_ART_RECT.width}px`;
         art.style.height = `${ALBUM_ART_RECT.height}px`;
-        art.style.objectFit = 'cover';
+        // 'contain', not 'cover': real album art is square and fine either
+        // way, but disc.gif (the offline placeholder, see OFFLINE_ALBUM_ART_SRC)
+        // is a small square icon that 'cover' would crop into an off-center
+        // sliver to fill this wide rect.
+        art.style.objectFit = 'contain';
         art.style.pointerEvents = 'none';
         art.style.display = 'none';
         mainWindowEl.appendChild(art);
         albumArtElRef.current = art;
+
+        // Covers the skin's baked-in "WWW.DIGITERACTIVE.COM" title bar
+        // graphic — static, set once, never updated per-song like the art/
+        // marquee above.
+        const titleOverlay = document.createElement('div');
+        titleOverlay.style.position = 'absolute';
+        titleOverlay.style.left = `${TITLE_OVERLAY_RECT.left}px`;
+        titleOverlay.style.top = `${TITLE_OVERLAY_RECT.top}px`;
+        titleOverlay.style.width = `${TITLE_OVERLAY_RECT.width}px`;
+        titleOverlay.style.height = `${TITLE_OVERLAY_RECT.height}px`;
+        titleOverlay.style.display = 'flex';
+        titleOverlay.style.alignItems = 'center';
+        titleOverlay.style.justifyContent = 'center';
+        titleOverlay.style.overflow = 'hidden';
+        titleOverlay.style.background = TITLE_OVERLAY_BACKGROUND;
+        titleOverlay.style.color = TITLE_OVERLAY_TEXT_COLOR;
+        titleOverlay.style.fontFamily = 'monospace';
+        titleOverlay.style.fontWeight = 'bold';
+        titleOverlay.style.fontSize = '9px';
+        titleOverlay.style.letterSpacing = '0.5px';
+        titleOverlay.style.whiteSpace = 'nowrap';
+        titleOverlay.style.pointerEvents = 'none';
+        titleOverlay.textContent = TITLE_TEXT;
+        mainWindowEl.appendChild(titleOverlay);
+        titleOverlayElRef.current = titleOverlay;
       }
 
       const marqueeEl = document.getElementById('marquee');
@@ -376,6 +436,8 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
       }
       albumArtElRef.current?.remove();
       albumArtElRef.current = null;
+      titleOverlayElRef.current?.remove();
+      titleOverlayElRef.current = null;
       marqueeOverlayElRef.current?.remove();
       marqueeOverlayElRef.current = null;
       marqueeTrackElRef.current = null;
@@ -401,7 +463,8 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
   // Push the currently-playing Spotify track into Webamp's display whenever
   // it changes. setTracksToPlay auto-starts playback, which we don't want
   // (there's no real audio behind the placeholder file), so it's paused
-  // again immediately after.
+  // again immediately after. When nothing's playing, shows disc.gif and
+  // "offline :)" instead of just going blank.
   useEffect(() => {
     const webamp = webampRef.current;
     if (!ready || !webamp) return;
@@ -424,12 +487,8 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
       }
 
       if (albumArtElRef.current) {
-        if (song.albumImageUrl) {
-          albumArtElRef.current.src = song.albumImageUrl;
-          albumArtElRef.current.style.display = 'block';
-        } else {
-          albumArtElRef.current.style.display = 'none';
-        }
+        albumArtElRef.current.src = song.albumImageUrl || OFFLINE_ALBUM_ART_SRC;
+        albumArtElRef.current.style.display = 'block';
       }
 
       if (marqueeOverlayElRef.current && marqueeTrackElRef.current) {
@@ -445,11 +504,11 @@ const WebampWindow = ({ initialPosition, zIndex, onFocus, onLayout }) => {
       webamp.setTracksToPlay([]);
       webamp._clearDurationFix?.();
       if (albumArtElRef.current) {
-        albumArtElRef.current.style.display = 'none';
+        albumArtElRef.current.src = OFFLINE_ALBUM_ART_SRC;
+        albumArtElRef.current.style.display = 'block';
       }
-      if (marqueeTrackElRef.current) {
-        marqueeTrackElRef.current.style.animation = 'none';
-        marqueeTrackElRef.current.replaceChildren();
+      if (marqueeOverlayElRef.current && marqueeTrackElRef.current) {
+        setMarqueeText(marqueeTrackElRef.current, marqueeOverlayElRef.current.clientWidth, OFFLINE_TEXT, styles.marqueeScroll);
       }
     }
   }, [ready, song]);
