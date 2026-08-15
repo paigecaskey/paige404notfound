@@ -7,7 +7,7 @@ function MyApp({ Component, pageProps }) {
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/fav.png" type="image/png"/>
+        <link rel="icon" href="/favicon.ico" sizes="32x32" />
         <title>paige404notfound</title>
       </Head>
       <Component {...pageProps} />
