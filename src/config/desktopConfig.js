@@ -11,7 +11,7 @@
 // TODO: drop the real wallpaper at public/assets/wallpaper/wallpaper.jpg
 const WALLPAPER_SRC = '/assets/wallpaper/wallpaper.jpg';
 
-// TODO: license + drop Neuropol at public/fonts/neuropol.woff2 (+ .woff fallback if you have it)
+// Neuropol lives at public/fonts/; its @font-face is in src/styles/global.css.
 const FONT = {
   family: 'Neuropol',
   woff2Src: '/fonts/neuropol.woff2',

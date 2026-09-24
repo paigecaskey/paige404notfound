@@ -3,6 +3,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Arizonia&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet');
 @import url('https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet"');
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Bitter:ital,wght@0,100..900;1,100..900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inconsolata:wght@200..900&family=Jersey+10&family=Jersey+20&family=Micro+5&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Orbitron:wght@400..900&display=swap" rel="stylesheet');
+@font-face {
+    font-family: "Neuropol";
+    src:
+        url("/fonts/neuropol.woff2") format("woff2"),
+        url("/fonts/neuropol.woff") format("woff");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     --header-font-size: calc(4px + 2vmin);
     --border: 2px solid #f3f4f9;
@@ -19,6 +29,7 @@
     --fun-font: Verdana, sans-serif;
     --normal-font: "Montserrat", sans-serif;
     --code-font: "Source Code Pro", monospace;
+    --neuropol-font: "Neuropol", sans-serif;
     --wide-text: scaleX(1.25);
     --wider-text: scaleX(1.5);
     background-color: var(--background-color);

@@ -1,15 +1,4 @@
-/* TODO: license + drop the real font files at the paths below (see desktopConfig.js).
-   Until then this silently fails and falls back to Orbitron / sans-serif. */
-@font-face {
-  font-family: 'Neuropol';
-  src:
-    url('/fonts/neuropol.woff2') format('woff2'),
-    url('/fonts/neuropol.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
+/* Neuropol's @font-face lives in src/styles/global.css. */
 .desktopRoot {
   --desktop-font: 'Neuropol', 'Orbitron', 'Helvetica Neue', Arial, sans-serif;
 
