@@ -1,0 +1,10 @@
+.background {
+  position: fixed;
+  inset: 0;
+  background-color: #0b0716;
+  background-image: url('/assets/backgrounds/home-bg.jpg');
+  background-size: cover;
+  /* Anchor left so the face stays in frame when narrow screens crop the image. */
+  background-position: left center;
+  background-repeat: no-repeat;
+}
